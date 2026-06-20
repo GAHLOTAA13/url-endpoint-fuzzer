@@ -104,13 +104,52 @@ def normalize_url(url):
     return url
 
 
+def parse_multi_urls(raw_input):
+    """
+    Parse multiple URLs from a single input string.
+    Accepts comma-separated or newline-separated values, ignores blanks/duplicates.
+    """
+    # Support both comma-separated and newline-separated entries
+    raw_input = raw_input.replace('\n', ',')
+    candidates = [u.strip() for u in raw_input.split(',')]
+    
+    seen = set()
+    urls = []
+    for candidate in candidates:
+        if not candidate:
+            continue
+        normalized = normalize_url(candidate)
+        if normalized not in seen:
+            seen.add(normalized)
+            urls.append(normalized)
+    return urls
+
+
+def load_urls_from_file(filepath):
+    """Load target URLs from a text file, one URL per line"""
+    with open(filepath, 'r') as f:
+        lines = [line.strip() for line in f if line.strip()]
+    return parse_multi_urls('\n'.join(lines))
+
+
 def generate_urls(base_url, endpoints):
-    """Generate full URLs by appending endpoints to base URL"""
+    """Generate full URLs by appending endpoints to a single base URL"""
     urls = []
     for endpoint in endpoints:
         full_url = base_url + endpoint
         urls.append(full_url)
     return urls
+
+
+def generate_urls_multi(base_urls, endpoints):
+    """
+    Generate full URLs for MULTIPLE base URLs at once (batch/multi-URL mode).
+    Returns a dict: {base_url: [list of generated urls]}
+    """
+    results = {}
+    for base_url in base_urls:
+        results[base_url] = generate_urls(base_url, endpoints)
+    return results
 
 
 def save_to_file(urls, filename='fuzzing_urls.txt'):
@@ -126,37 +165,59 @@ def main():
     print("URL Endpoint Fuzzer for Bug Bounty")
     print("=" * 60)
     
-    # Get base URL from user
-    base_url = input("\nEnter the target URL (e.g., google.com): ").strip()
+    print("\nSelect mode:")
+    print("  1. Single URL")
+    print("  2. Multiple URLs (comma-separated, batch mode)")
+    print("  3. Load URLs from a file (one URL per line)")
+    mode = input("\nEnter choice (1/2/3): ").strip()
     
-    if not base_url:
-        print("[!] Error: URL cannot be empty")
+    if mode == '3':
+        filepath = input("Enter path to URL list file: ").strip()
+        try:
+            base_urls = load_urls_from_file(filepath)
+        except FileNotFoundError:
+            print(f"[!] Error: File '{filepath}' not found")
+            return
+    elif mode == '2':
+        raw_input_urls = input("\nEnter target URLs (comma-separated, e.g. google.com,example.com): ").strip()
+        base_urls = parse_multi_urls(raw_input_urls)
+    else:
+        single_url = input("\nEnter the target URL (e.g., google.com): ").strip()
+        base_urls = parse_multi_urls(single_url)
+    
+    if not base_urls:
+        print("[!] Error: No valid URL(s) provided")
         return
     
-    # Normalize the URL
-    base_url = normalize_url(base_url)
-    print(f"\n[+] Base URL: {base_url}")
-    print(f"[+] Generating {len(ENDPOINTS)} endpoint variations...\n")
+    print(f"\n[+] Targets loaded: {len(base_urls)}")
+    print(f"[+] Generating {len(ENDPOINTS)} endpoint variations per target...")
+    print(f"[+] Total URLs to be generated: {len(base_urls) * len(ENDPOINTS)}")
     print("[*] Including: .git, .svn, .bzr, .hg, _darcs, .env, admin panels, API endpoints, backups, etc.\n")
     
-    # Generate URLs
-    generated_urls = generate_urls(base_url, ENDPOINTS)
+    # Generate URLs for all targets (multi-URL batch mode)
+    results = generate_urls_multi(base_urls, ENDPOINTS)
     
-    # Display results
-    print("-" * 60)
-    for url in generated_urls:
-        print(url)
+    # Display results grouped by target
+    all_urls = []
+    for base_url, generated_urls in results.items():
+        print("-" * 60)
+        print(f"Target: {base_url}")
+        print("-" * 60)
+        for url in generated_urls:
+            print(url)
+            all_urls.append(url)
     print("-" * 60)
     
     # Ask if user wants to save to file
-    save_choice = input("\nSave to file? (y/n): ").strip().lower()
+    save_choice = input("\nSave all results to file? (y/n): ").strip().lower()
     if save_choice == 'y':
         filename = input("Enter filename (default: fuzzing_urls.txt): ").strip()
         if not filename:
             filename = 'fuzzing_urls.txt'
-        save_to_file(generated_urls, filename)
+        save_to_file(all_urls, filename)
     
-    print(f"\n[+] Total URLs generated: {len(generated_urls)}")
+    print(f"\n[+] Targets processed: {len(base_urls)}")
+    print(f"[+] Total URLs generated: {len(all_urls)}")
     print("[+] Done!")
 
 
