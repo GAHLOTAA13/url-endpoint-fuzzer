@@ -1,6 +1,7 @@
 # URL Endpoint Fuzzer
 
 A Python tool for bug bounty hunters to generate URLs with common security testing endpoints.
+<img width="1078" height="453" alt="Screenshot 2026-06-20 at 10 07 48 AM" src="https://github.com/user-attachments/assets/e2b349d2-fdfe-45fc-8b49-3e02142716a0" />
 
 ## Features
 - 44+ common endpoints (.git, .env, /admin, /api, etc.)
