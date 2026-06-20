@@ -32,6 +32,7 @@ https://example.com/admin
 
 ## Requirements
 - Python 3.x (no external dependencies)
+- multiurl extension (for chrome and firefox)
 
 ## Use Cases
 - Bug bounty reconnaissance
